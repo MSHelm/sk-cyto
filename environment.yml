@@ -1,0 +1,8 @@
+name: skcyto
+dependencies:
+  - numpy
+  - scipy
+  - scikit-learn
+  - igraph
+  - minisom
+  - flowutils
