@@ -1,131 +1,129 @@
 #####################################
-Quick Start with the project-template
+Quick Start with sk-cyto
 #####################################
 
-This package serves as a skeleton package aiding at developing compatible
-scikit-learn contribution.
 
-Creating your own scikit-learn contribution package
-===================================================
+Installation
+============
 
-1. Download and setup your repository
--------------------------------------
+From PyPI
+.. code-block::
+    pip install sk-cyto
 
-To create your package, you need to clone the ``project-template`` repository::
+Install from Github source code with
 
-    $ git clone https://github.com/scikit-learn-contrib/project-template.git
+.. code-block::
+    git clone git@github.com:MSHelm/sk-cyto.git
+    cd sk-cyto
+    pip install .
 
-Before to reinitialize your git repository, you need to make the following
-changes. Replace all occurrences of ``skcyto`` and ``skcyto``
-with the name of you own contribution. You can find all the occurrences using
-the following command::
+Training your first FlowSOM model
+=========================
 
-    $ git grep skcyto
-    $ git grep skcyto
+File reading
+-------------
+.. _flowIO: https://github.com/whitews/FlowIO
+*sk-cyto* does not provide file reading capabilities. To read fcs files, please refer to
+the excellent flowIO_ package, which has zero dependencies.
 
-To remove the history of the template package, you need to remove the `.git`
-directory::
+.. code-block::python
+    import flowio
+    import numpy as np
+    import pandas as pd
 
-    $ cd project-template
-    $ rm -rf .git
+    fcs_data = flowio.FlowData("example.fcs")
+    X = np.reshape(fcs_data.events, (-1, fcs_data.channel_count))
 
-Then, you need to initialize your new git repository::
+    # If desired create a DataFrame with meaningful column names
+    pnn_labels = [val["PnN"] for _, val in fcs_data.channels.items()]
+    X_train = pd.DataFrame(X, columns = pnn_labels)
 
-    $ git init
-    $ git add .
-    $ git commit -m 'Initial commit'
+    # Extract compensation matrix
+    C = flowio.parse_compensation_matrix(fcs_data.text["spill"])
 
-Finally, you create an online repository on GitHub and push your code online::
+Alternatively for testing purposes, we can create a fake data set with 5 populations like this:
 
-    $ git remote add origin https://github.com/your_remote/your_contribution.git
-    $ git push origin master
+.. code-block::python
+    import numpy as np
+    import pandas as pd
+    from sklearn.datasets import make_blobs
+    from sklearn.model_selection import train_test_split
+    X, _ = make_blobs(n_samples=1000, n_features=10, centers = 5, random_state=42)
 
-2. Develop your own scikit-learn estimators
--------------------------------------------
+    X_train, X_test = train_test_split(X)
 
-.. _check_estimator: http://scikit-learn.org/stable/modules/generated/sklearn.utils.estimator_checks.check_estimator.html#sklearn.utils.estimator_checks.check_estimator
-.. _`Contributor's Guide`: http://scikit-learn.org/stable/developers/
-.. _PEP8: https://www.python.org/dev/peps/pep-0008/
-.. _PEP257: https://www.python.org/dev/peps/pep-0257/
-.. _NumPyDoc: https://github.com/numpy/numpydoc
-.. _doctests: https://docs.python.org/3/library/doctest.html
+    # Create fake uncompensated data.
+    c = np.random.randn(10, 10)
+    C = (c + c.T)/2
+    C.fill_diagonal(0)
 
-You can modify the source files as you want. However, your custom estimators
-need to pass the check_estimator_ test to be scikit-learn compatible. You can
-refer to the :ref:`User Guide <user_guide>` to help you create a compatible
-scikit-learn estimator.
+    X_train = np.dot(X_train, C)
 
-In any case, developers should endeavor to adhere to scikit-learn's
-`Contributor's Guide`_ which promotes the use of:
 
-* algorithm-specific unit tests, in addition to ``check_estimator``'s common
-  tests;
-* PEP8_-compliant code;
-* a clearly documented API using NumpyDoc_ and PEP257_-compliant docstrings;
-* references to relevant scientific literature in standard citation formats;
-* doctests_ to provide succinct usage examples;
-* standalone examples to illustrate the usage, model visualisation, and
-  benefits/benchmarks of particular algorithms;
-* efficient code when the need for optimization is supported by benchmarks.
+Preprocessing the data
+----------------------
 
-3. Edit the documentation
--------------------------
+Flow cytometry data usually is compensated and transformed. This was mostly done historically,
+to make it easier for the human analyzers to separate populations. Machine learning models often
+do not require this kind of preprocessing, but it can help the training process. The FlowSOM
+paper for example suggests to normalize your data in addition to compensation and logicle transformation.
+Also, FlowSOM does usually only use fluorescence channels, and not the forward and side scatter channels.
 
-.. _Sphinx: http://www.sphinx-doc.org/en/stable/
+To combine all these preprocessing steps, we can take advantage of the sklearn infrastructure.
 
-The documentation is created using Sphinx_. In addition, the examples are
-created using ``sphinx-gallery``. Therefore, to generate locally the
-documentation, you are required to install the following packages::
+.. code-block::python
+    from sklearn.preprocessing import StandardScaler
+    from sklearn.pipeline import Pipeline
+    from sklearn.compose import ColumnTransformer, make_column_selector
+    from skcyto.preprocessing import LogicleTransformer, CompensationTransformer
+    from skcyto.flowsom import FlowSOM
+    
+    pipeline = Pipeline([
+      ("compensation", CompensationTransformer(C)),
+      ("logicle_transform", LogicleTransformer()),
+      ("Standardization", StandardScaler())
+    ])
 
-    $ pip install sphinx sphinx-gallery sphinx_rtd_theme matplotlib numpydoc pillow
+    transform = ColumnTransformer(
+      (pipeline, make_column_selector(pattern = "^(?!FL)"))
+    )
 
-The documentation is made of:
+    transform.fit_transform(X_train)
 
-* a home page, ``doc/index.rst``;
-* an API documentation, ``doc/api.rst`` in which you should add all public
-  objects for which the docstring should be exposed publicly.
-* a User Guide documentation, ``doc/user_guide.rst``, containing the narrative
-  documentation of your package, to give as much intuition as possible to your
-  users.
-* examples which are created in the `examples/` folder. Each example
-  illustrates some usage of the package. the example file name should start by
-  `plot_*.py`.
 
-The documentation is built with the following commands::
+Training a FlowSOM model
+------------------------
 
-    $ cd doc
-    $ make html
+Now we can easily train a FlowSOM model.
 
-4. Setup the continuous integration
------------------------------------
+.. code-block::python
+    from skcyto import FlowSOM
 
-The project template already contains configuration files of the continuous
-integration system. Basically, the following systems are set:
+    X_in = transform.X_
 
-* Travis CI is used to test the package in Linux. You need to activate Travis
-  CI for your own repository. Refer to the Travis CI documentation.
-* AppVeyor is used to test the package in Windows. You need to activate
-  AppVeyor for your own repository. Refer to the AppVeyor documentation.
-* Circle CI is used to check if the documentation is generated properly. You
-  need to activate Circle CI for your own repository. Refer to the Circle CI
-  documentation.
-* ReadTheDocs is used to build and host the documentation. You need to activate
-  ReadTheDocs for your own repository. Refer to the ReadTheDocs documentation.
-* CodeCov for tracking the code coverage of the package. You need to activate
-  CodeCov for you own repository.
-* PEP8Speaks for automatically checking the PEP8 compliance of your project for
-  each Pull Request.
+    fsom = FlowSOM(k_min = 2, k_max = 10)
+    fsom.fit(X_)
+    fsom.labels_
 
-Publish your package
-====================
 
-.. _PyPi: https://packaging.python.org/tutorials/packaging-projects/
-.. _conda-foge: https://conda-forge.org/
+Combining everything using sklearn infrastructure
+--------------------------------------------------
 
-You can make your package available through PyPi_ and conda-forge_. Refer to
-the associated documentation to be able to upload your packages such that
-it will be installable with ``pip`` and ``conda``. Once published, it will
-be possible to install your package with the following commands::
+We can also easily integrate the FlowSOM training into the pipeline
 
-    $ pip install your-scikit-learn-contribution
-    $ conda install -c conda-forge your-scikit-learn-contribution
+.. code-block::python
+    transform.pipeline.steps.append["FlowSOM", FlowSOM(k_min = 2, k_max = 10)]
+    transform.fit_transform(X_train)
+
+
+Using the model for inference
+-----------------------------
+
+FlowSOM can not only be used for unsupervised clustering, the model can also be used
+for inference of new data points. For example, you might collect some reference data set
+at the beginning of your experiments, to which you want to map other data. 
+
+.. code-block::python
+
+    transform.predict(X_test)
+

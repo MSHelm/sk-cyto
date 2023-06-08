@@ -556,7 +556,7 @@ class CompensationTransformer(BaseEstimator, TransformerMixin, OneToOneFeatureMi
 
         self._check_X_C_compatible(X)
 
-        X = np.linal.solve(self.C.T, X.T).T
+        X = np.linalg.solve(self.C.T, X.T).T
 
         return X
     
@@ -579,7 +579,7 @@ class CompensationTransformer(BaseEstimator, TransformerMixin, OneToOneFeatureMi
 
         self._check_X_C_compatible(X)
 
-        X = np.linal.solve(X, self.C)
+        X = np.dot(X, self.C)
 
         return X
 
