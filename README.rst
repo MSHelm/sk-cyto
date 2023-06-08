@@ -20,8 +20,29 @@ sk-cyto - Flow cytometry algorithms for scikit-learn
 
 **sk-cyto** brings flow cytometry to scikit-learn.
 
+Flow cytometry is extremely amenable to regular machine learning algorithms. At the same time,
+it requires specific data transformations, and various dedicated analysis methods have been developed.
+sk-cyto allows you to combine the best of sk-learn infrastructure with dedicated cytometry analysis methods.
+Use established patterns, such as ``Pipeline`` and existing ``Transformers`` together with state-of-the-art
+algorithms like ``FlowSOM``.
+
 .. _documentation: https://sk-cyto.readthedocs.io/en/latest/quick_start.html
 
+Refer to the documentation_ for a full list of available ``Transformers`` and ``Estimators``
+
+This package is work in progress. New features and algorithms will be implemented frequently.
 
 
+Installation
+============
+
+From PyPI::
+
+    pip install sk-cyto
+
+Install from Github source code with::
+
+    git clone git@github.com:MSHelm/sk-cyto.git
+    cd sk-cyto
+    pip install .
 

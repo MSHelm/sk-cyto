@@ -31,32 +31,14 @@ module, which has 0 dependencies and can convert your fcs file to a numpy array.
    :hidden:
    :caption: Documentation
 
-   user_guide
    api
-
-.. toctree::
-   :maxdepth: 2
-   :hidden:
-   :caption: Tutorial - Examples
-
-   auto_examples/index
 
 `Getting started <quick_start.html>`_
 -------------------------------------
 
-Information regarding this template and how to modify it for your own project.
-
-`User Guide <user_guide.html>`_
--------------------------------
-
-An example of narrative documentation.
+How to use sk-cyto in conjunction with sk-learn
 
 `API Reference <api.html>`_
 -------------------------------
 
-All public APIs
-
-`Examples <auto_examples/index.html>`_
---------------------------------------
-
-A set of examples. It complements the `User Guide <user_guide.html>`_.
+All public ``Transformers`` and ``Estimators``
